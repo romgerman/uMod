@@ -1,4 +1,4 @@
-﻿using Oxide.Core.Plugins;
+using Oxide.Core.Plugins;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -26,6 +26,8 @@ namespace Oxide.Core.Libraries
     /// </summary>
     public class WebRequests : Library
     {
+        private static readonly Covalence.Covalence covalence = Interface.Oxide.GetLibrary<Covalence.Covalence>();
+
         /// <summary>
         /// Specifies the HTTP request timeout in seconds
         /// </summary>
@@ -123,6 +125,7 @@ namespace Oxide.Core.Libraries
                     request.ServicePoint.MaxIdleTime = request.Timeout;
                     request.ServicePoint.Expect100Continue = ServicePointManager.Expect100Continue;
                     request.ServicePoint.ConnectionLimit = ServicePointManager.DefaultConnectionLimit;
+                    request.ServicePoint.BindIPEndPointDelegate = (servicePoint, remoteEndPoint, retryCount) => new IPEndPoint(covalence.Server.Address ?? IPAddress.Any, 0);
 
                     // Optional request body for POST requests
                     byte[] data = new byte[0];
