@@ -126,11 +126,12 @@ namespace Oxide.Core.Libraries
                     request.ServicePoint.Expect100Continue = ServicePointManager.Expect100Continue;
                     request.ServicePoint.ConnectionLimit = ServicePointManager.DefaultConnectionLimit;
 
-                    // Try to assign server's assigned IP address, not primary network adapter address
-                    if (Environment.OSVersion.Platform != PlatformID.Unix)
+                    // Exclude loopback requests and Linux from IP binding for now
+                    if (!request.RequestUri.IsLoopback && Environment.OSVersion.Platform != PlatformID.Unix)
                     {
                         request.ServicePoint.BindIPEndPointDelegate = (servicePoint, remoteEndPoint, retryCount) =>
                         {
+                            // Try to assign server's assigned IP address, not primary network adapter address
                             return new IPEndPoint(covalence.Server.LocalAddress ?? covalence.Server.Address, 0); // TODO: Figure out why this doesn't work on Linux
                         };
                     }
@@ -169,7 +170,7 @@ namespace Oxide.Core.Libraries
                             }
                             catch (Exception ex)
                             {
-                                ResponseText = ex.Message.Trim('\r', '\n', ' ');
+                                ResponseText = FormatWebException(ex, ResponseText ?? string.Empty);
                                 request?.Abort();
                                 OnComplete();
                                 return;
@@ -184,7 +185,7 @@ namespace Oxide.Core.Libraries
                 }
                 catch (Exception ex)
                 {
-                    ResponseText = ex.Message.Trim('\r', '\n', ' ');
+                    ResponseText = FormatWebException(ex, ResponseText ?? string.Empty);
                     string message = $"Web request produced exception (Url: {Url})";
                     if (Owner)
                     {
@@ -216,7 +217,7 @@ namespace Oxide.Core.Libraries
                     }
                     catch (WebException ex)
                     {
-                        ResponseText = ex.Message.Trim('\r', '\n', ' ');
+                        ResponseText = FormatWebException(ex, ResponseText ?? string.Empty);
                         HttpWebResponse response = ex.Response as HttpWebResponse;
                         if (response != null)
                         {
@@ -237,7 +238,7 @@ namespace Oxide.Core.Libraries
                     }
                     catch (Exception ex)
                     {
-                        ResponseText = ex.Message.Trim('\r', '\n', ' ');
+                        ResponseText = FormatWebException(ex, ResponseText ?? string.Empty);
                         string message = $"Web request produced exception (Url: {Url})";
                         if (Owner)
                         {
@@ -331,6 +332,29 @@ namespace Oxide.Core.Libraries
         private bool shutdown;
         private readonly int maxWorkerThreads;
         private readonly int maxCompletionPortThreads;
+
+        /// <summary>
+        /// Formats given WebException to string
+        /// </summary>
+        /// <param name="exception"></param>
+        /// <param name="response"></param>
+        /// <returns></returns>
+        public static string FormatWebException(Exception exception, string response)
+        {
+            if (!string.IsNullOrEmpty(response))
+            {
+                response += Environment.NewLine;
+            }
+
+            response += exception.Message;
+
+            if (exception.InnerException != null)
+            {
+                response = FormatWebException(exception.InnerException, response);
+            }
+
+            return response;
+        }
 
         /// <summary>
         /// Initializes a new instance of the WebRequests library

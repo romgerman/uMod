@@ -122,15 +122,14 @@ namespace Oxide.Core
 
             if (RootDirectory == null)
             {
-                throw new Exception($"RootDirectory is null");
+                throw new Exception("RootDirectory is null");
             }
 
             InstanceDirectory = Path.Combine(RootDirectory, "oxide");
-
             Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
             JsonConvert.DefaultSettings = () => new JsonSerializerSettings { Culture = CultureInfo.InvariantCulture };
-
             CommandLine = new CommandLine(Environment.GetCommandLineArgs());
+
             if (CommandLine.HasVariable("oxide.directory"))
             {
                 string var, format;
@@ -147,39 +146,39 @@ namespace Oxide.Core
                 throw new Exception("Could not identify extension directory");
             }
 
-            PluginDirectory = Path.Combine(InstanceDirectory, Utility.CleanPath("plugins"));
-            ConfigDirectory = Path.Combine(InstanceDirectory, Utility.CleanPath("config"));
-            DataDirectory = Path.Combine(InstanceDirectory, Utility.CleanPath("data"));
-            LangDirectory = Path.Combine(InstanceDirectory, Utility.CleanPath("lang"));
-            LogDirectory = Path.Combine(InstanceDirectory, Utility.CleanPath("logs"));
             if (!Directory.Exists(InstanceDirectory))
             {
                 Directory.CreateDirectory(InstanceDirectory);
             }
 
-            if (!Directory.Exists(PluginDirectory))
-            {
-                Directory.CreateDirectory(PluginDirectory);
-            }
-
+            ConfigDirectory = Path.Combine(InstanceDirectory, Utility.CleanPath("config"));
             if (!Directory.Exists(ConfigDirectory))
             {
                 Directory.CreateDirectory(ConfigDirectory);
             }
 
+            DataDirectory = Path.Combine(InstanceDirectory, Utility.CleanPath("data"));
             if (!Directory.Exists(DataDirectory))
             {
                 Directory.CreateDirectory(DataDirectory);
             }
 
+            LangDirectory = Path.Combine(InstanceDirectory, Utility.CleanPath("lang"));
             if (!Directory.Exists(LangDirectory))
             {
                 Directory.CreateDirectory(LangDirectory);
             }
 
+            LogDirectory = Path.Combine(InstanceDirectory, Utility.CleanPath("logs"));
             if (!Directory.Exists(LogDirectory))
             {
                 Directory.CreateDirectory(LogDirectory);
+            }
+
+            PluginDirectory = Path.Combine(InstanceDirectory, Utility.CleanPath("plugins"));
+            if (!Directory.Exists(PluginDirectory))
+            {
+                Directory.CreateDirectory(PluginDirectory);
             }
 
             RegisterLibrarySearchPath(Path.Combine(ExtensionDirectory, IntPtr.Size == 8 ? "x64" : "x86"));
@@ -195,9 +194,14 @@ namespace Oxide.Core
                 Config.Save();
             }
 
+            if (CommandLine.HasVariable("nolog"))
+            {
+                LogWarning("Usage of the 'nolog' variable will prevent logging");
+            }
+
             if (CommandLine.HasVariable("rcon.port"))
             {
-                Config.Rcon.Port = int.Parse(CommandLine.GetVariable("rcon.port"));
+                Config.Rcon.Port = Utility.GetNumbers(CommandLine.GetVariable("rcon.port"));
             }
 
             if (CommandLine.HasVariable("rcon.password"))
@@ -257,11 +261,6 @@ namespace Oxide.Core
                 watcher.OnPluginAdded += watcher_OnPluginAdded;
                 watcher.OnPluginRemoved += watcher_OnPluginRemoved;
             }
-
-            if (CommandLine.HasVariable("nolog"))
-            {
-                LogWarning("Usage of the 'nolog' variable will prevent logging");
-            }
         }
 
         /// <summary>
@@ -291,7 +290,7 @@ namespace Oxide.Core
         /// <param name="format"></param>
         /// <param name="args"></param>
         /// <returns></returns>
-        public void LogDebug(string format, params object[] args) => RootLogger.Write(LogType.Warning, format, args);
+        public void LogDebug(string format, params object[] args) => RootLogger.Write(LogType.Warning, $"[DEBUG] {format}", args);
 
         /// <summary>
         /// Logs a formatted error message to the root logger
@@ -334,7 +333,7 @@ namespace Oxide.Core
         /// </summary>
         public void LoadAllPlugins(bool init = false)
         {
-            IEnumerable<PluginLoader> loaders = extensionManager.GetPluginLoaders();
+            IEnumerable<PluginLoader> loaders = extensionManager.GetPluginLoaders().ToArray();
 
             // Load all core plugins first
             if (!HasLoadedCorePlugins)
@@ -685,21 +684,19 @@ namespace Oxide.Core
             libtimer.Update(delta);
 
             // Don't update plugin watchers or call OnFrame in plugins until servers starts ticking
-            if (!isInitialized)
+            if (isInitialized)
             {
-                return;
-            }
+                ServerConsole?.Update();
 
-            ServerConsole?.Update();
-
-            // Update extensions
-            try
-            {
-                onFrame?.Invoke(delta);
-            }
-            catch (Exception ex)
-            {
-                LogException($"{ex.GetType().Name} while invoke OnFrame in extensions", ex);
+                // Update extensions
+                try
+                {
+                    onFrame?.Invoke(delta);
+                }
+                catch (Exception ex)
+                {
+                    LogException($"{ex.GetType().Name} while invoke OnFrame in extensions", ex);
+                }
             }
         }
 
