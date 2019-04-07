@@ -225,6 +225,8 @@ namespace Oxide.Core
             extensionManager = new ExtensionManager(RootLogger);
             DataFileSystem = new DataFileSystem(DataDirectory);
 
+            extensionManager.RegisterPluginLoader(new BundleLoader());
+
             extensionManager.RegisterLibrary("Covalence", covalence = new Covalence());
             extensionManager.RegisterLibrary("Global", new Global());
             extensionManager.RegisterLibrary("Lang", new Lang());
